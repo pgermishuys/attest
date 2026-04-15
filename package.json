@@ -1,23 +1,59 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "attest",
-  "private": true,
+  "name": "@weave/attest-opencode-plugin",
+  "version": "0.1.0",
+  "description": "OpenCode TUI plugin that gates commits behind a comprehension interview",
+  "author": "pgermishuys",
+  "license": "MIT",
+  "homepage": "https://github.com/pgermishuys/intent-gate",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pgermishuys/intent-gate.git"
+  },
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "attest",
+    "comprehension-gate",
+    "weave"
+  ],
   "workspaces": [
     ".opencode"
   ],
   "scripts": {
-    "typecheck": "bunx tsc --noEmit -p tsconfig.json && bun run --cwd .opencode typecheck",
-    "test": "bun test tests/unit tests/integration tests/e2e tests/smoke",
-    "test:unit": "bun test tests/unit",
-    "test:integration": "bun test tests/integration",
-    "test:e2e": "bun test tests/e2e",
-    "test:smoke": "bun test tests/smoke",
-    "evals": "bun run tests/evals/run-evals.ts"
+    "build": "bun run script/build.ts && tsc --emitDeclarationOnly",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/ test/",
+    "test:unit": "bun test src/",
+    "test:integration": "bun test test/integration/",
+    "test:e2e": "bun test test/e2e/",
+    "evals": "bun run evals/run-evals.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.4.6",
+    "@opencode-ai/sdk": "1.4.6"
   },
   "devDependencies": {
     "@types/bun": "^1.2.18",
     "@types/node": "^22.15.3",
+    "bun-types": "^1.3.11",
     "typescript": "^5.8.3"
   }
 }

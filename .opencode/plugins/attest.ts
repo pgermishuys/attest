@@ -1,3 +1,3 @@
-import plugin from "./attest/entry"
+import plugin from "../../src/entry"
 
 export default plugin
