@@ -1,0 +1,12 @@
+{
+  "defaultDiffMode": "staged",
+  "baseBranch": "main",
+  "maxDiffCharacters": 12000,
+  "evidenceDirectory": ".attest/runs",
+  "maxQuestionsByRisk": {
+    "low": 2,
+    "medium": 4,
+    "high": 6
+  },
+  "allowFollowUps": true
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "attest",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    ".opencode"
+  ],
+  "scripts": {
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json && bun run --cwd .opencode typecheck",
+    "test": "bun test tests/unit tests/integration tests/e2e tests/smoke",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:e2e": "bun test tests/e2e",
+    "test:smoke": "bun test tests/smoke",
+    "evals": "bun run tests/evals/run-evals.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.18",
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  }
+}
