@@ -1,4 +1,4 @@
-name: Publish
+name: Publish to npm
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (e.g. 0.2.0, 0.2.0-beta.1)"
+        description: 'Version to publish (e.g., 0.2.0, 0.2.0-beta.1). Prerelease versions publish to "next" dist-tag.'
         required: true
         type: string
 
@@ -17,14 +17,16 @@ jobs:
   publish:
     name: Build & Publish
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js (for npm publish)
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
@@ -41,37 +43,30 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Verify dist output
+      - name: Verify build output
         run: |
           test -f dist/index.js || (echo "dist/index.js not found" && exit 1)
           test -f dist/index.d.ts || (echo "dist/index.d.ts not found" && exit 1)
-          echo "dist/ verified"
+          echo "Build output verified"
 
-      - name: Determine version and dist-tag
+      - name: Set package version and dist-tag
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION="${{ github.event.release.tag_name }}"
-            VERSION="${VERSION#v}"
+            VERSION="${GITHUB_REF_NAME#v}"
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if echo "$VERSION" | grep -qE '(alpha|beta|rc|next)'; then
-            echo "tag=next" >> "$GITHUB_OUTPUT"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          if [[ "$VERSION" == *-* ]]; then
+            echo "NPM_TAG=next" >> "$GITHUB_OUTPUT"
+            echo "Publishing version $VERSION to dist-tag: next (prerelease)"
           else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "NPM_TAG=latest" >> "$GITHUB_OUTPUT"
+            echo "Publishing version $VERSION to dist-tag: latest (stable)"
           fi
 
-      - name: Set package version
-        run: |
-          bun -e "
-            const pkg = await Bun.file('package.json').json();
-            pkg.version = '${{ steps.version.outputs.version }}';
-            await Bun.write('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-      - name: Publish to npm
-        run: npm publish --tag ${{ steps.version.outputs.tag }}
+      - name: Publish
+        run: npm publish --tag ${{ steps.version.outputs.NPM_TAG }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

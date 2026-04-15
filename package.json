@@ -33,9 +33,6 @@
     "comprehension-gate",
     "weave"
   ],
-  "workspaces": [
-    ".opencode"
-  ],
   "scripts": {
     "build": "bun run script/build.ts && tsc --emitDeclarationOnly",
     "clean": "rm -rf dist",

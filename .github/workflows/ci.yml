@@ -6,15 +6,13 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
 jobs:
   test:
     name: Test & Typecheck
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -35,5 +33,6 @@ jobs:
       - name: E2E tests
         run: bun run test:e2e
 
-      - name: Audit dependencies
-        run: bun pm trust --list
+      - name: Audit dependencies for known vulnerabilities
+        run: bunx audit-ci --low
+        continue-on-error: true

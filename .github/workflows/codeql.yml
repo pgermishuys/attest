@@ -1,4 +1,4 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
@@ -6,31 +6,29 @@ on:
   pull_request:
     branches: [main]
   schedule:
+    # Run weekly on Monday at 06:00 UTC to catch new vulnerability patterns
     - cron: "0 6 * * 1"
-
-permissions:
-  actions: read
-  contents: read
-  security-events: write
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript-typescript
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:javascript-typescript"
