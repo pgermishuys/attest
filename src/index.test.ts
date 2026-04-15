@@ -7,7 +7,11 @@ describe("attest plugin module", () => {
     expect(plugin.id).toBe(AttestPluginId)
   })
 
-  it("exports a tui entrypoint", () => {
-    expect(typeof plugin.tui).toBe("function")
+  it("exports a server entrypoint", () => {
+    expect(typeof plugin.server).toBe("function")
+  })
+
+  it("does not export a tui entrypoint", () => {
+    expect(plugin.tui).toBeUndefined()
   })
 })

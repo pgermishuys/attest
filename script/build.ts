@@ -3,7 +3,7 @@ const result = await Bun.build({
   outdir: "./dist",
   target: "node",
   format: "esm",
-  external: ["@opencode-ai/plugin", "@opentui/core", "@opentui/solid"],
+  external: ["@opencode-ai/plugin", "@opencode-ai/sdk", "zod", "effect"],
   minify: false,
 })
 

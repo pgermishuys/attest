@@ -1,4 +1,6 @@
-export { default, tui, createAttestCommands } from "./entry"
+export { default } from "./entry-server"
+export { ATTEST_COMMANDS } from "./commands/definitions"
+export type { AttestCommand } from "./commands/definitions"
 export type {
   AttestCommandValue,
   AiContributionLevel,

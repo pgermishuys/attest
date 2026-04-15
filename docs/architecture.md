@@ -1,14 +1,19 @@
 # Architecture
 
-Attest is a comprehension gate for AI-assisted development, built as an OpenCode TUI plugin.
+Attest is a comprehension gate for AI-assisted development, built as an OpenCode **server plugin**.
 
 ## Module Structure
 
 ```text
 src/
   index.ts              Package entry point — re-exports plugin and public types
-  entry.ts              OpenCode TUI plugin registration (commands, slash commands)
+  entry-server.ts       OpenCode server plugin registration (commands, hooks, tool)
   types.ts              Shared type definitions and constants
+
+  commands/             Server plugin command and tool definitions
+    definitions.ts      Command templates for /attest and /attest-resume
+    execute-handler.ts  command.execute.before handler (diff, risk, questions)
+    submit-tool.ts      attest_submit tool (answer evaluation, evidence writing)
 
   config/               Configuration loading
     load-config.ts      Reads .attest/config.json with defaults
@@ -45,8 +50,7 @@ src/
     opencode-session-client.ts  OpenCode SDK session-based client
     schema.ts                 JSON schema definitions for LLM I/O
     prompts/
-      evaluate-interview.md   System prompt for answer evaluation
-      generate-interview.md   System prompt for question generation
+      index.ts          Inlined prompt constants (no runtime file reads)
 
   path/                 Path utilities
     safe-paths.ts       Safe path construction and validation
@@ -64,7 +68,6 @@ src/
     store.ts            Session read/write operations
 
   ui/                   User interface rendering
-    collect-interactive.ts   Interactive answer collection
     render-summary.ts        Summary display
     render-verdict.ts        Verdict display
 ```
@@ -73,20 +76,50 @@ src/
 
 ```
 User runs /attest
-  → collect-intent (intent + AI disclosure)
-  → collect-diff-context (git diff)
-  → classify-risk (deterministic)
-  → select-interview-depth (deterministic)
-  → generate-questions (LLM)
-  → collect-interactive (user answers)
-  → evaluate-answers (LLM)
-  → apply-escalation-rules (deterministic)
-  → compute-verdict (deterministic)
-  → write evidence artifacts (JSON + Markdown)
-  → render verdict to user
+  → command.execute.before hook (server-side, before LLM):
+      → collect-diff-context (git diff)
+      → classify-risk (deterministic)
+      → select-interview-depth (deterministic)
+      → generate-questions (LLM)
+      → create session record (asking_questions)
+      → inject interview context into output.parts
+  → LLM presents questions to user conversationally
+  → User answers questions in chat
+  → LLM calls attest_submit tool:
+      → evaluate-answers (LLM)
+      → apply-escalation-rules (deterministic)
+      → compute-verdict (deterministic)
+      → write evidence artifacts (JSON + Markdown)
+      → transition session to completed
+      → return verdict string to LLM
+  → LLM presents verdict to user
 ```
 
 ## Key Design Decisions
+
+### Server Plugin Architecture
+
+Attest is implemented as an OpenCode **server plugin** (not a TUI plugin). Server plugins:
+- Are installable via `opencode.json`'s `plugin` array: `{ "plugin": ["@weave/attest-opencode-plugin"] }`
+- Export a `server` async function that receives `PluginInput` and returns `Hooks`
+- Can register slash commands, intercept command execution, and define custom tools
+
+### Command + Tool Hybrid Pattern
+
+The `/attest` slash command uses a hybrid approach:
+1. **Command template** (`config.command`) — defines the slash command and instructs the LLM
+2. **`command.execute.before` hook** — runs server-side before the LLM, injects diff analysis and questions
+3. **`attest_submit` tool** — called by the LLM after collecting answers, evaluates and writes evidence
+
+This pattern keeps `/attest` as a discoverable slash command while doing the heavy computation server-side.
+
+### `config.command` Pattern
+
+The `config.command` mutation pattern is code-proven in Weave's production plugin. The SDK's `Config` type includes a `command` property (`Record<string, { template, description?, agent?, model? }>`).
+
+**Note**: While this property exists in the SDK types, it is not formally documented in OpenCode's public API. The smoke test in `test/e2e/config-command-registration.smoke.test.ts` verifies compatibility against `@opencode-ai/plugin@1.4.6` and will fail loudly if the contract changes.
+
+The `config` hook defensively initializes `config.command` to `{}` before mutation to handle the case where no other plugin has set it yet.
 
 ### Deterministic vs LLM-backed
 
@@ -94,11 +127,13 @@ The policy engine (risk classification, escalation rules, verdict computation, i
 
 ### LLM Contract Layer
 
-The `llm/client.ts` abstraction allows swapping between a stub client (for testing) and the OpenCode session-based client (for production). The contract is defined by typed input/output schemas, not by prompt details.
+The `llm/client.ts` abstraction allows swapping between a stub client (for testing) and the OpenCode session-based client (for production). The contract is defined by typed input/output schemas.
 
-### Plugin Entry Point
+### Prompt Asset Inlining
 
-The OpenCode plugin entry point lives at `.opencode/plugins/attest.ts` and imports from `src/entry.ts`. This preserves OpenCode's plugin discovery mechanism (`.opencode/tui.json` → `./plugins/attest.ts`) while keeping source in the standard `src/` layout.
+Prompt text is inlined as TypeScript string constants in `src/llm/prompts/index.ts` rather than loaded from `.md` files at runtime. This ensures:
+- The built `dist/index.js` is self-contained (no runtime file reads)
+- The `package.json#files: ["dist/"]` approach works without copying additional assets
 
 ### Evidence Artifacts
 

@@ -1,12 +1,9 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
 import type { LlmQuestionGenerationInput, LlmQuestionGenerationOutput } from "../types"
 import type { AttestLlmClient } from "./client"
 import { createFallbackQuestions } from "./fallbacks"
+import { questionGenerationPrompt } from "./prompts"
 
-const promptPath = join(import.meta.dir, "prompts", "generate-interview.md")
-
-export const questionGenerationPrompt = readFileSync(promptPath, "utf8")
+export { questionGenerationPrompt }
 
 export const generateQuestions = async (
   client: AttestLlmClient,

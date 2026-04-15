@@ -1,177 +1,109 @@
 import { describe, expect, it } from "bun:test"
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import plugin from "../../src/entry"
-import { loadSession } from "../../src/session/store"
+import { createExecuteBeforeHandler } from "../../src/commands/execute-handler"
+import { createSubmitTool } from "../../src/commands/submit-tool"
+import { createStubLlmClient } from "../../src/llm/client"
+import { createProjectFixture } from "../testkit/fixtures/project-fixture"
+import type { Part } from "@opencode-ai/sdk"
 
-const createPluginMeta = () => ({
-  id: "weave.attest",
-  source: "file",
-  spec: "./plugins/attest.ts",
-  target: "./plugins/attest.ts",
-  first_time: Date.now(),
-  last_time: Date.now(),
-  time_changed: Date.now(),
-  load_count: 1,
-  fingerprint: "test",
-  state: "first",
+const createMockOutput = () => ({ parts: [] as Part[] })
+
+const getPartText = (parts: Part[]): string =>
+  parts.map((p) => (p.type === "text" ? p.text : "")).join("\n")
+
+const createMockToolContext = () => ({
+  sessionID: "ctx_session",
+  messageID: "ctx_message",
+  agent: "test-agent",
+  directory: "/tmp",
+  worktree: "/tmp",
+  abort: new AbortController().signal,
+  metadata() {},
+  ask() {
+    return { pipe: () => {} } as never
+  },
 })
 
 const initializeRepo = (repoRoot: string) => {
-  mkdirSync(join(repoRoot, ".attest"), { recursive: true })
-  writeFileSync(join(repoRoot, ".attest", "config.json"), JSON.stringify({ maxDiffCharacters: 2000 }))
-  Bun.spawnSync(["git", "init", "-b", "main"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-  Bun.spawnSync(["git", "config", "user.email", "attest@example.com"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-  Bun.spawnSync(["git", "config", "user.name", "Attest"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-  writeFileSync(join(repoRoot, "README.md"), "hello\n")
+  writeFileSync(join(repoRoot, "README.md"), "hello\nworld\n")
   Bun.spawnSync(["git", "add", "README.md"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-  Bun.spawnSync(["git", "commit", "-m", "init"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
 }
 
-const createPluginApi = (repoRoot: string, prompts: string[], selections: unknown[]) => {
-  const toasts: { variant?: string; title?: string; message: string }[] = []
-  const registered: unknown[] = []
-  const sessions = new Map<string, unknown[]>()
-  let sessionCount = 0
-
-  return {
-    command: {
-      register(cb: () => unknown[]) {
-        registered.push(...cb())
-        return () => undefined
-      },
-      trigger() {},
-      show() {},
-    },
-    ui: {
-      Dialog: () => null,
-      DialogAlert: () => null,
-      DialogConfirm: () => null,
-      DialogPrompt(input: { onConfirm?: (value: string) => void }) {
-        input.onConfirm?.(prompts.shift() ?? "")
-        return null
-      },
-      DialogSelect(input: { onSelect?: (option: { value: unknown }) => void; options: { value: unknown }[] }) {
-        const next = selections.shift()
-        const option = input.options.find((item) => item.value === next) ?? input.options[0]
-        input.onSelect?.(option)
-        return null
-      },
-      Slot: () => null,
-      Prompt: () => null,
-      toast(input: { variant?: string; title?: string; message: string }) {
-        toasts.push(input)
-      },
-      dialog: {
-        replace(render: () => unknown) {
-          render()
-        },
-        clear() {},
-        setSize() {},
-        size: "medium" as const,
-        depth: 0,
-        open: false,
-      },
-    },
-    state: {
-      path: {
-        state: join(repoRoot, ".opencode", "state.json"),
-        config: join(repoRoot, ".opencode", "tui.json"),
-        worktree: repoRoot,
-        directory: repoRoot,
-      },
-    },
-    client: {
-      session: {
-        async create() {
-          sessionCount += 1
-          const sessionID = `plugin-session-${sessionCount}`
-          sessions.set(sessionID, [])
-          return { id: sessionID }
-        },
-        async promptAsync(input: { sessionID: string; parts?: Array<{ text?: string }>; format?: unknown }) {
-          const promptText = input.parts?.map((part) => part.text ?? "").join("\n") ?? ""
-          const payload = promptText.includes("Generate reviewer-style interview questions")
-            ? {
-                questions: [
-                  { id: "live-q1", prompt: "How does the change work end to end?", kind: "how_it_works", source: "llm" },
-                  { id: "live-q2", prompt: "What assumption matters most here?", kind: "assumptions", source: "llm" },
-                  { id: "live-q3", prompt: "What would you inspect first if this failed?", kind: "failure_mode", source: "llm" },
-                ],
-              }
-            : {
-                ratings: [
-                  { questionId: "live-q1", rating: "strong", rationale: "Grounded answer." },
-                  { questionId: "live-q2", rating: "strong", rationale: "Grounded answer." },
-                  { questionId: "live-q3", rating: "strong", rationale: "Grounded answer." },
-                ],
-                recommendedVerdict: "PASS",
-                rationale: ["Live OpenCode stub evaluation succeeded."],
-              }
-          sessions.set(input.sessionID, [{ info: { role: "assistant", structured: payload }, parts: [] }])
-          return undefined
-        },
-        async messages(input: { sessionID: string }) {
-          return sessions.get(input.sessionID) ?? []
-        },
-        async delete(input: { sessionID: string }) {
-          sessions.delete(input.sessionID)
-          return true
-        },
-      },
-    },
-    _registered: registered,
-    _toasts: toasts,
-  } as {
-    _registered: { value: string; onSelect?: () => Promise<void> }[]
-    _toasts: { variant?: string; title?: string; message: string }[]
-  }
-}
-
-describe("attest plugin interactive flow", () => {
-  it("collects real intent and answer inputs for /attest", async () => {
-    const repoRoot = mkdtempSync(join(tmpdir(), "attest-plugin-"))
+describe("attest plugin interactive flow (server plugin)", () => {
+  it("command.execute.before handler injects interview context for /attest", async () => {
+    const repoRoot = createProjectFixture()
     initializeRepo(repoRoot)
-    writeFileSync(join(repoRoot, "README.md"), "hello\nworld\n")
-    Bun.spawnSync(["git", "add", "README.md"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
 
-    const api = createPluginApi(
-      repoRoot,
-      [
-        "Summarize the README update",
-        "Explain why the README changed",
-        "Used AI to draft wording",
-        "The README now documents the staged update with enough detail for review.",
-        "The main assumption is that readers still rely on README guidance after the change.",
-        "I would inspect the staged README diff first if this caused confusion.",
-      ],
-      [true, "medium"],
-    )
+    const llmClient = createStubLlmClient()
+    const handler = createExecuteBeforeHandler(repoRoot, llmClient)
+    const output = createMockOutput()
+    await handler({ command: "attest", sessionID: "ses_interactive_1", arguments: "" }, output)
 
-    await plugin.tui(api as never, undefined, createPluginMeta() as never)
-    const command = api._registered.find((item) => item.value === "attest.run")
-    await command?.onSelect?.()
+    expect(output.parts).toHaveLength(1)
+    const text = getPartText(output.parts)
+    expect(text).toContain("attest-interview-context")
+    expect(text).toContain("ses_interactive_1")
+    expect(text).toContain("Risk level:")
+    expect(text).toContain("Comprehension questions")
+    expect(text).toContain("attest_submit")
 
-    expect(api._toasts.at(-1)?.message).toContain("wrote 2 questions to evidence")
-    const sessionFile = readdirSync(join(repoRoot, ".attest", "sessions")).find((entry) => entry.endsWith(".json"))
-    expect(sessionFile).toBeDefined()
-    const session = loadSession(repoRoot, sessionFile!.replace(/\.json$/, ""))
-    expect(session.intent?.summary).toBe("Summarize the README update")
-    expect(session.answers[0]?.answer).toContain("README now documents")
+    // Verify session was stored
+    const sessionFiles = readdirSync(join(repoRoot, ".attest", "sessions"))
+    expect(sessionFiles.length).toBeGreaterThan(0)
   })
 
-  it("forces branch diff mode for the branch command and resumes with collected answers", async () => {
-    const repoRoot = mkdtempSync(join(tmpdir(), "attest-plugin-"))
+  it("attest_submit tool evaluates answers and writes evidence", async () => {
+    const repoRoot = createProjectFixture()
     initializeRepo(repoRoot)
-    mkdirSync(join(repoRoot, ".attest", "sessions"), { recursive: true })
-    writeFileSync(join(repoRoot, "README.md"), "hello\nbranch change\n")
-    Bun.spawnSync(["git", "checkout", "-b", "feature/test"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-    Bun.spawnSync(["git", "add", "README.md"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-    Bun.spawnSync(["git", "commit", "-m", "branch change"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
-    writeFileSync(join(repoRoot, "README.md"), "hello\nbranch change\nworking tree only\n")
 
-    const sessionId = "resume_me"
+    const llmClient = createStubLlmClient()
+    const handler = createExecuteBeforeHandler(repoRoot, llmClient)
+    const output = createMockOutput()
+    await handler({ command: "attest", sessionID: "ses_interactive_2", arguments: "" }, output)
+
+    // Parse question IDs from injected context
+    const text = getPartText(output.parts)
+    const questionMatches = [...text.matchAll(/\[(\w+-\w+|\w+)\]/g)]
+    const questionIds = questionMatches.map((m) => m[1]).filter(Boolean)
+
+    const tool = createSubmitTool(repoRoot, llmClient)
+    const answers = questionIds.map((id) => ({
+      question_id: id!,
+      answer: `This is a detailed answer to question ${id} that demonstrates solid understanding.`,
+    }))
+
+    const result = await tool.execute(
+      { session_id: "ses_interactive_2", answers },
+      createMockToolContext() as never,
+    )
+
+    expect(result).toContain("Verdict:")
+    expect(result).toContain("Evidence written to:")
+    expect(existsSync(join(repoRoot, ".attest", "runs"))).toBe(true)
+  })
+
+  it("branch diff mode for attest command with 'branch' argument", async () => {
+    const repoRoot = createProjectFixture()
+    writeFileSync(join(repoRoot, "src", "feature.ts"), "export const feature = true\n")
+    Bun.spawnSync(["git", "checkout", "-b", "feature/interactive-test"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
+    Bun.spawnSync(["git", "add", "src/feature.ts"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
+    Bun.spawnSync(["git", "commit", "-m", "add feature"], { cwd: repoRoot, stdout: "ignore", stderr: "pipe" })
+
+    const handler = createExecuteBeforeHandler(repoRoot, createStubLlmClient())
+    const output = createMockOutput()
+    await handler({ command: "attest", sessionID: "ses_branch_interactive", arguments: "branch" }, output)
+
+    expect(output.parts).toHaveLength(1)
+    const text = getPartText(output.parts)
+    expect(text).toContain("attest-interview-context")
+  })
+
+  it("attest-resume command loads incomplete session and shows remaining questions", async () => {
+    const repoRoot = createProjectFixture()
+    mkdirSync(join(repoRoot, ".attest", "sessions"), { recursive: true })
+
+    const sessionId = "ses_resume_interactive"
     writeFileSync(
       join(repoRoot, ".attest", "sessions", `${sessionId}.json`),
       JSON.stringify({
@@ -187,56 +119,99 @@ describe("attest plugin interactive flow", () => {
           truncated: false,
         },
         intent: {
-          summary: "Resume summary",
+          summary: "Resume test",
           motivation: "Resume motivation",
           aiDisclosure: { used: false, contributionLevel: "none" },
         },
         risk: {
           level: "medium",
-          rationale: ["medium risk fixture"],
+          categories: ["refactor"],
           requiresHumanEscalation: false,
-          indicators: [],
+          rationale: ["test"],
         },
         questions: [
-          { id: "q1", prompt: "How?", kind: "how_it_works", source: "deterministic" },
-          { id: "q2", prompt: "Why?", kind: "assumptions", source: "deterministic" },
-          { id: "q3", prompt: "Fallback?", kind: "failure_mode", source: "deterministic" },
+          { id: "q1", prompt: "How does it work?", kind: "how_it_works", source: "deterministic" },
+          { id: "q2", prompt: "What can fail?", kind: "failure_mode", source: "deterministic" },
+          { id: "q3", prompt: "How to roll back?", kind: "rollback", source: "deterministic" },
         ],
         answers: [
-          { questionId: "q1", answer: "Existing answer with enough detail to keep state intact.", answeredAt: "2026-04-15T10:10:00.000Z" },
+          { questionId: "q1", answer: "It works like this.", answeredAt: "2026-04-15T10:10:30.000Z" },
         ],
-      }, null, 2),
+      }),
+      "utf8",
     )
 
-    const api = createPluginApi(
-      repoRoot,
-      [
-        "Branch summary",
-        "Branch motivation",
-        "Branch answer one with enough detail to pass on branch mode.",
-        "Branch answer two with enough detail to pass on branch mode.",
-        "Branch answer three with enough detail to pass on branch mode.",
-        "Resume answer two with enough detail to preserve the resumed session.",
-        "Resume answer three with enough detail to preserve the resumed session.",
-      ],
-      [false],
+    const handler = createExecuteBeforeHandler(repoRoot, createStubLlmClient())
+    const output = createMockOutput()
+    await handler({ command: "attest-resume", sessionID: "ses_resume_ctx", arguments: "" }, output)
+
+    expect(output.parts).toHaveLength(1)
+    const text = getPartText(output.parts)
+    expect(text).toContain("attest-resume-context")
+    expect(text).toContain(sessionId)
+    expect(text).toContain("q2")
+    expect(text).toContain("q3")
+    expect(text).toContain("collect only the new answers")
+    // q1 was already answered so should not appear
+    expect(text).not.toContain("q1]")
+  })
+
+  it("resume flow succeeds when only new answers are submitted", async () => {
+    const repoRoot = createProjectFixture()
+    mkdirSync(join(repoRoot, ".attest", "sessions"), { recursive: true })
+
+    const sessionId = "ses_resume_submit_success"
+    writeFileSync(
+      join(repoRoot, ".attest", "sessions", `${sessionId}.json`),
+      JSON.stringify({
+        sessionId,
+        createdAt: "2026-04-15T10:10:00.000Z",
+        updatedAt: "2026-04-15T10:10:00.000Z",
+        status: "asking_questions",
+        diffContext: {
+          mode: "staged",
+          target: "staged",
+          changedFiles: [{ path: "README.md", status: "modified", additions: 1, deletions: 0 }],
+          summary: { filesChanged: 1, additions: 1, deletions: 0 },
+          truncated: false,
+          diffText: "diff --git a/README.md b/README.md\n+updated\n",
+        },
+        intent: {
+          summary: "Resume test",
+          motivation: "Resume motivation",
+          aiDisclosure: { used: false, contributionLevel: "none" },
+        },
+        risk: {
+          level: "medium",
+          categories: ["refactor"],
+          requiresHumanEscalation: false,
+          rationale: ["test"],
+        },
+        questions: [
+          { id: "q1", prompt: "How does it work?", kind: "how_it_works", source: "deterministic" },
+          { id: "q2", prompt: "What can fail?", kind: "failure_mode", source: "deterministic" },
+          { id: "q3", prompt: "How to roll back?", kind: "rollback", source: "deterministic" },
+        ],
+        answers: [
+          { questionId: "q1", answer: "Previously answered q1 with enough detail to keep.", answeredAt: "2026-04-15T10:10:30.000Z" },
+        ],
+      }),
+      "utf8",
     )
 
-    await plugin.tui(api as never, undefined, createPluginMeta() as never)
+    const tool = createSubmitTool(repoRoot, createStubLlmClient())
+    const result = await tool.execute(
+      {
+        session_id: sessionId,
+        answers: [
+          { question_id: "q2", answer: "Resume answer for q2 with enough detail to demonstrate understanding." },
+          { question_id: "q3", answer: "Resume answer for q3 with enough detail to demonstrate understanding." },
+        ],
+      },
+      createMockToolContext() as never,
+    )
 
-    const branchCommand = api._registered.find((item) => item.value === "attest.branch")
-    await branchCommand?.onSelect?.()
-
-    const sessionFiles = readdirSync(join(repoRoot, ".attest", "sessions")).map((entry) => join(repoRoot, ".attest", "sessions", entry))
-    const branchSessionPath = sessionFiles.find((path) => !path.endsWith(`${sessionId}.json`))
-    expect(branchSessionPath).toBeDefined()
-    const branchSession = JSON.parse(readFileSync(branchSessionPath!, "utf8")) as { diffContext: { mode: string } }
-    expect(branchSession.diffContext.mode).toBe("branch")
-
-    const resumeCommand = api._registered.find((item) => item.value === "attest.resume")
-    await resumeCommand?.onSelect?.()
-
-    expect(api._toasts.some((toast) => toast.message.includes("resumed session"))).toBe(true)
+    expect(result).toContain("Verdict:")
     expect(existsSync(join(repoRoot, ".attest", "runs"))).toBe(true)
   })
 })

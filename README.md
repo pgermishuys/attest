@@ -23,31 +23,64 @@ Before a pull request is opened, Attest asks the engineer to explain the change 
 
 ## What Attest is
 
-Attest is an **OpenCode TUI plugin** with a slash-command interface.
+Attest is an **OpenCode server plugin** with a slash-command interface.
 
 - runs inside the developer workflow
 - inspects local code changes
-- asks targeted comprehension questions
+- asks targeted comprehension questions conversationally
 - evaluates whether understanding appears genuine
 - writes a durable evidence record
 
-## Pilot UX
+## Installation
 
-### Primary commands
+Add Attest to your `opencode.json`:
 
-- `/attest` — run Attest against the default change set
-- `/attest branch` — run Attest against the current branch diff
-- `/attest resume` — resume an interrupted Attest session
+```json
+{
+  "plugin": ["@weave/attest-opencode-plugin"]
+}
+```
+
+## Usage
+
+### Slash commands
+
+- `/attest` — run Attest against staged changes
+- `/attest branch` — run Attest against the current branch diff (vs main)
+- `/attest-resume` — resume an interrupted Attest session
 
 ### Expected flow
 
-1. Attest inspects the relevant diff
-2. The engineer states their intent and any AI usage disclosure
-3. Attest classifies risk
-4. Attest asks a small number of targeted questions
-5. The engineer answers in-session
-6. Attest evaluates the answers
-7. Attest returns a verdict and writes an evidence artifact
+```
+User: /attest
+Attest: "I've analyzed your staged changes. Here's the comprehension interview:
+         Risk level: medium (2 files changed, touches business logic)
+
+         Question 1/3: How does the new validation flow handle edge cases?
+         Question 2/3: What assumption does the service make about request ordering?
+         Question 3/3: What would you check first if this broke in production?"
+User: [answers each question in conversation]
+Attest: [calls attest_submit tool with session_id and collected answers]
+Attest: "Verdict: PASS — all 3 answers demonstrate solid understanding.
+         Evidence written to .attest/runs/2026-04-15T16-30-00.000Z.json"
+```
+
+### Command/Tool Contract
+
+1. `/attest` triggers a `command.execute.before` hook that:
+   - Inspects the staged (or branch) diff
+   - Classifies risk
+   - Generates comprehension questions
+   - Creates a session record
+   - Injects interview context into the LLM message
+
+2. The LLM presents questions to the user and collects answers conversationally.
+
+3. The LLM calls the `attest_submit` tool with:
+   - `session_id` — the session ID from the interview context
+   - `answers` — array of `{ question_id, answer }` (user's verbatim answers)
+
+4. The tool evaluates answers, writes evidence, and returns a verdict.
 
 Possible verdicts: `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, `ESCALATE_TO_HUMAN`, `BLOCK`
 
@@ -55,6 +88,7 @@ Possible verdicts: `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, `ESCALATE_TO_
 
 ```text
 src/                    Source code with co-located unit tests
+  commands/             Server plugin command and tool definitions
   config/               Configuration loading
   domain/               Core domain models
   evidence/             Evidence artifact writing
@@ -66,23 +100,18 @@ src/                    Source code with co-located unit tests
   session/              Session persistence
   ui/                   User interface rendering
 test/
-  integration/          Fixture-based integration tests
   e2e/                  End-to-end and plugin loading tests
+  integration/          Fixture-based integration tests
   testkit/              Shared test fixtures and utilities
 evals/                  Behavioral eval harness
-  cases/                Eval case definitions
 script/                 Build scripts
 docs/                   Architecture and strategy documentation
 dist/                   Build output (generated)
-.opencode/
-  plugins/attest.ts     Plugin entry shim
-  tui.json              Plugin discovery config
-  commands/             Slash command spike
 .attest/
   config.example.json   Sample pilot config
 ```
 
-## Getting started
+## Development
 
 ### 1. Install dependencies
 
@@ -96,21 +125,7 @@ bun install
 bun run build
 ```
 
-### 3. Open the repo in OpenCode
-
-With this repository as the working directory, OpenCode will pick up:
-
-- `.opencode/tui.json`
-- `.opencode/plugins/attest.ts`
-- `.opencode/commands/attest.md`
-
-### 4. Run Attest
-
-- `/attest`
-- `/attest branch`
-- `/attest resume`
-
-## Testing
+### 3. Testing
 
 ```bash
 # All tests (unit + integration + e2e)
@@ -156,7 +171,7 @@ Attest writes local artifacts under:
 
 - interview question generation, answer evaluation
 
-The pilot uses a **stub LLM client** behind a strict contract boundary. See [docs/architecture.md](docs/architecture.md) for details.
+The production plugin uses OpenCode's session-based LLM client. Tests use a stub client behind the same contract boundary. See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Relationship to Weave
 
