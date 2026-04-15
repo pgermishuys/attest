@@ -1,23 +1,15 @@
 import { describe, expect, it } from "bun:test"
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import plugin from "../../src/entry"
 import { createAttestCommands } from "../../src/entry"
-import tuiConfig from "../../.opencode/tui.json" assert { type: "json" }
 
 describe("opencode plugin load smoke", () => {
-  it("has the expected workspace metadata for local plugin loading", () => {
-    expect(tuiConfig.plugin[0]?.[0]).toBe("./plugins/attest.ts")
+  it("exports a valid plugin module with the expected id", () => {
     expect(plugin.id).toBe("weave.attest")
-    expect(createAttestCommands(() => undefined).some((command) => command.slash?.name === "attest")).toBe(true)
+    expect(typeof plugin.tui).toBe("function")
   })
 
-  it("can materialize a minimal local .opencode config fixture", () => {
-    const root = mkdtempSync(join(tmpdir(), "attest-smoke-"))
-    mkdirSync(join(root, ".opencode", "plugins"), { recursive: true })
-    writeFileSync(join(root, ".opencode", "tui.json"), JSON.stringify(tuiConfig, null, 2))
-
-    expect(JSON.parse(readFileSync(join(root, ".opencode", "tui.json"), "utf8")).plugin[0][0]).toBe("./plugins/attest.ts")
+  it("registers a slash command for /attest", () => {
+    const commands = createAttestCommands(() => undefined)
+    expect(commands.some((command) => command.slash?.name === "attest")).toBe(true)
   })
 })

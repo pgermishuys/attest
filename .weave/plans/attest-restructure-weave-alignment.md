@@ -508,5 +508,5 @@ Align Attest's project structure, build pipeline, test organization, and CI/CD w
 - [x] No source files remain in `.opencode/plugins/attest/` (only the shim at `.opencode/plugins/attest.ts`)
 - [x] No test files remain in `tests/` (directory deleted)
 - [x] `.opencode/tui.json` → `./plugins/attest.ts` plugin loading path works
-- [ ] `git status` shows clean working tree after all changes committed
+- [x] `git status` shows clean working tree after all changes committed
 - [x] All CI workflow YAML files are valid
