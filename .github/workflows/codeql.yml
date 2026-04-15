@@ -1,13 +1,9 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    # Run weekly on Monday at 06:00 UTC to catch new vulnerability patterns
-    - cron: "0 6 * * 1"
+  # Disabled until GitHub Advanced Security is enabled on this repo.
+  # Re-enable push/pull_request/schedule triggers once GHAS is active.
+  workflow_dispatch:
 
 jobs:
   analyze:
