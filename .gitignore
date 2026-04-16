@@ -1,0 +1,18 @@
+dist/
+coverage/
+node_modules/
+.DS_Store
+/tmp/
+*.log
+bun.lockb
+
+# npm auth (never commit tokens)
+.npmrc.local
+
+# Attest runtime state
+.attest/runs/
+
+# Weave runtime state (execution state, not plans)
+.weave/*
+!.weave/plans/
+!.weave/designs/

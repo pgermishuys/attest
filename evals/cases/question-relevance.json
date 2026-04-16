@@ -1,0 +1,24 @@
+{
+  "name": "question-relevance",
+  "intent": {
+    "summary": "Update service logic",
+    "motivation": "Validate medium-risk interviewing",
+    "aiDisclosure": {
+      "used": true,
+      "contributionLevel": "medium"
+    }
+  },
+  "riskLevel": "medium",
+  "changedFiles": [
+    "src/service.ts"
+  ],
+  "diffSummary": "Service behavior updated",
+  "expected": {
+    "minQuestions": 3,
+    "mustMention": [
+      "work",
+      "assumption",
+      "fail"
+    ]
+  }
+}

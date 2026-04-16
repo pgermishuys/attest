@@ -1,0 +1,45 @@
+{
+  "name": "verdict-consistency",
+  "intent": {
+    "summary": "Update auth path",
+    "motivation": "Validate high-risk evaluation",
+    "aiDisclosure": {
+      "used": true,
+      "contributionLevel": "high"
+    }
+  },
+  "riskLevel": "high",
+  "diffSummary": "Authorization logic changed",
+  "questions": [
+    {
+      "id": "q1",
+      "prompt": "How does the auth change work?",
+      "kind": "how_it_works",
+      "source": "llm"
+    },
+    {
+      "id": "q2",
+      "prompt": "What failure mode matters most?",
+      "kind": "failure_mode",
+      "source": "llm"
+    }
+  ],
+  "answers": [
+    {
+      "questionId": "q1",
+      "answer": "This updates auth checks with enough detail to explain the path.",
+      "answeredAt": "2026-04-15T10:50:00.000Z"
+    },
+    {
+      "questionId": "q2",
+      "answer": "I would inspect authorization failures first.",
+      "answeredAt": "2026-04-15T10:50:00.000Z"
+    }
+  ],
+  "expected": {
+    "verdicts": [
+      "PASS",
+      "NEEDS_FOLLOWUP"
+    ]
+  }
+}
