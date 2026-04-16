@@ -75,7 +75,7 @@ For prerelease versions (alpha, beta, rc):
 Install prerelease versions with:
 
 ```bash
-npm install @pgermishuys/opencode_attest
+npm install @weaveio/opencode_attest
 ```
 
 ## CI/CD

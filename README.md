@@ -69,7 +69,7 @@ Attest is an **OpenCode plugin** that conducts a targeted interview grounded in 
 
 ## Installation
 
-This package is published on [npm](https://www.npmjs.com/package/@pgermishuys/opencode_attest).
+This package is published on [npm](https://www.npmjs.com/package/@weaveio/opencode_attest).
 
 ### Prerequisites
 
@@ -81,7 +81,7 @@ Add the plugin to your `opencode.json` file:
 
 ```json
 {
-  "plugin": ["@pgermishuys/opencode_attest"]
+  "plugin": ["@weaveio/opencode_attest"]
 }
 ```
 
@@ -93,14 +93,14 @@ OpenCode automatically installs npm plugins at startup — no manual `bun add` o
 
 | Issue | Solution |
 |-------|----------|
-| `404 Not Found` | Ensure the package name is correct: `@pgermishuys/opencode_attest`. |
+| `404 Not Found` | Ensure the package name is correct: `@weaveio/opencode_attest`. |
 | Package not found after publish | npm can take a few minutes to propagate. Wait and retry. |
 
 ## Uninstalling
 
 ### Step 1: Remove from opencode.json
 
-Delete the `@pgermishuys/opencode_attest` entry from the `plugin` array in your `opencode.json`.
+Delete the `@weaveio/opencode_attest` entry from the `plugin` array in your `opencode.json`.
 
 ### Step 2: Clean up artifacts (optional)
 

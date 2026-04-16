@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@pgermishuys/opencode_attest",
+  "name": "@weaveio/opencode_attest",
   "version": "0.1.0",
   "description": "OpenCode TUI plugin that gates commits behind a comprehension interview",
   "author": "pgermishuys",
