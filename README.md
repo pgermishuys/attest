@@ -26,10 +26,10 @@ Attest is an **OpenCode plugin** that conducts a targeted interview grounded in 
 
 - **Inspects** your local code changes
 - **Classifies risk** — sensitive changes (auth, crypto, billing, migrations) get deeper scrutiny
-- **Asks targeted questions** — calibrated to the change's risk level (2–6 questions)
+- **Asks targeted questions** — calibrated to the change's risk level (2–5 questions)
 - **Evaluates answers** — assesses whether understanding is genuine
 - **Records evidence** — writes durable, auditable artifacts (JSON + Markdown)
-- **Returns a verdict** — `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, `ESCALATE_TO_HUMAN`, or `BLOCK`
+- **Returns a verdict** — `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, or `ESCALATE_TO_HUMAN`
 
 ## How it works
 
@@ -38,7 +38,7 @@ Attest is an **OpenCode plugin** that conducts a targeted interview grounded in 
   → Declare intent (summary, motivation, AI disclosure)
   → Diff collected (staged or branch)
   → Risk classified (deterministic pattern matching)
-  → Interview depth selected (low: 2, medium: 4, high: 6 questions)
+  → Interview depth selected (low: 2, medium: 3, high: 5 questions)
   → Questions generated (grounded in actual diff)
   → Answers collected (interactive)
   → Answers evaluated
@@ -52,7 +52,7 @@ Attest is an **OpenCode plugin** that conducts a targeted interview grounded in 
 
 | Feature | Detail |
 |---------|--------|
-| **Risk-aware depth** | Low-risk (docs, tests): 2 questions. Medium (business logic): 4. High (auth, crypto, billing): 6. |
+| **Risk-aware depth** | Low-risk (docs, tests): 2 questions. Medium (business logic): 3. High (auth, crypto, billing): 5. |
 | **Deterministic policy** | Risk classification, verdict computation, and escalation rules are fully deterministic and auditable. |
 | **Durable evidence** | Machine-readable JSON and human-readable Markdown artifacts for every run. |
 | **Session resume** | Interrupted interviews can be resumed without starting over. |
@@ -63,9 +63,50 @@ Attest is an **OpenCode plugin** that conducts a targeted interview grounded in 
 
 | Command | Description |
 |---------|-------------|
-| `/attest` | Run against staged changes (default) |
-| `/attest branch` | Run against current branch diff |
-| `/attest resume` | Resume an interrupted session |
+| `/attest` | Run against staged changes (default). Pass `branch` to diff against base branch instead. |
+| `/attest-resume` | Resume an interrupted session |
+
+## Diff modes
+
+Attest supports three diff modes for collecting the code changes to interview against:
+
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| `staged` | Default (or configured via `defaultDiffMode`) | Analyzes `git diff --cached` |
+| `working_tree` | Automatic fallback if nothing is staged | Analyzes `git diff` (unstaged changes) |
+| `branch` | `/attest branch` | Analyzes `git diff <baseBranch>...HEAD` |
+
+Auto-detection order: if no explicit mode is requested, Attest checks for staged changes first, then working tree changes, then falls back to a branch diff.
+
+## Configuration
+
+Attest works with zero configuration out of the box. To customize behavior, create an optional `.attest/config.json` in your repository root:
+
+```json
+{
+  "defaultDiffMode": "staged",
+  "baseBranch": "main",
+  "maxDiffCharacters": 12000,
+  "evidenceDirectory": ".attest/runs",
+  "maxQuestionsByRisk": {
+    "low": 2,
+    "medium": 4,
+    "high": 6
+  },
+  "allowFollowUps": true
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `defaultDiffMode` | `"staged"` | Which diff mode to use when no argument is passed (`staged`, `working_tree`, or `branch`) |
+| `baseBranch` | `"main"` | Branch to diff against when using `branch` mode |
+| `maxDiffCharacters` | `12000` | Maximum diff size (in characters) sent to the LLM |
+| `evidenceDirectory` | `".attest/runs"` | Where evidence artifacts are written |
+| `maxQuestionsByRisk` | `{ low: 2, medium: 4, high: 6 }` | Maximum questions per risk level (configurable ceiling) |
+| `allowFollowUps` | `true` | Whether follow-up questions are permitted |
+
+All fields are optional — any omitted field uses its default value.
 
 ## Installation
 
@@ -122,6 +163,7 @@ See [docs/testing-strategy.md](docs/testing-strategy.md) for details.
 
 ```text
 src/                    Source code with co-located unit tests
+  commands/             Command definitions and handlers
   config/               Configuration loading
   domain/               Core domain models
   evidence/             Evidence artifact writing
@@ -141,12 +183,6 @@ evals/                  Behavioral eval harness
 script/                 Build scripts
 docs/                   Architecture and strategy documentation
 dist/                   Build output (generated)
-.opencode/
-  plugins/attest.ts     Plugin entry shim
-  tui.json              Plugin discovery config
-  commands/             Slash command spike
-.attest/
-  config.example.json   Sample pilot config
 ```
 
 ## Evidence artifacts
