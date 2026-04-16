@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-04-16
+
+### Changed
+
+- Redesigned as an OpenCode server plugin (programmatic command registration, no `.opencode/` scaffolding)
+- Updated README with logo, installation guide, and punchier descriptions
+- Aligned project layout with Weave conventions
+- Updated package name to `@weaveio/opencode_attest`
+
+### Fixed
+
+- CI workflow improvements (build before e2e tests, CodeQL trigger config)
+- Removed broken workspaces config and regenerated lockfile
+
 ## [0.1.0] - 2026-04-15
 
 ### Added
@@ -20,4 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Behavioral eval harness with question-relevance and verdict-consistency cases
 - Full test suite: 24 unit tests, 7 integration tests, 8 e2e tests
 
-[0.1.0]: https://github.com/pgermishuys/intent-gate/releases/tag/v0.1.0
+[0.1.1]: https://github.com/pgermishuys/attest/releases/tag/v0.1.1
+[0.1.0]: https://github.com/pgermishuys/attest/releases/tag/v0.1.0

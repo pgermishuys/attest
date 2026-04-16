@@ -37,7 +37,7 @@ const mergeAnswers = (
   return merged
 }
 
-export const createSubmitTool = (repoRoot: string, llmClient: AttestLlmClient) =>
+export const createSubmitTool = (repoRoot: string, llmClient: AttestLlmClient): ReturnType<typeof tool> =>
   tool({
     description:
       "Submit answers to an Attest comprehension interview. Call this after collecting all answers from the user. Returns a verdict and writes evidence artifacts.",
