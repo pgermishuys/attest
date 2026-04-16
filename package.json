@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@weave/attest-opencode-plugin",
+  "name": "@weaveio/opencode_attest",
   "version": "0.1.0",
   "description": "OpenCode server plugin that gates commits behind a comprehension interview via /attest slash command",
   "author": "pgermishuys",

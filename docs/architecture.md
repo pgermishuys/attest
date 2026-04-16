@@ -100,7 +100,7 @@ User runs /attest
 ### Server Plugin Architecture
 
 Attest is implemented as an OpenCode **server plugin** (not a TUI plugin). Server plugins:
-- Are installable via `opencode.json`'s `plugin` array: `{ "plugin": ["@weave/attest-opencode-plugin"] }`
+- Are installable via `opencode.json`'s `plugin` array: `{ "plugin": ["@weaveio/opencode_attest"] }`
 - Export a `server` async function that receives `PluginInput` and returns `Hooks`
 - Can register slash commands, intercept command execution, and define custom tools
 

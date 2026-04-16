@@ -75,7 +75,7 @@ For prerelease versions (alpha, beta, rc):
 Install prerelease versions with:
 
 ```bash
-npm install @weave/attest-opencode-plugin@next
+npm install @weaveio/opencode_attest@next
 ```
 
 ## CI/CD

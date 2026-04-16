@@ -1,94 +1,127 @@
-# Attest
+<p align="center">
+  <img src="attest.png" alt="Attest" width="200" />
+</p>
 
-**Attest is a comprehension gate for AI-assisted development.**
+<h1 align="center">Attest</h1>
 
-It helps engineers prove they understand the code they are about to submit.
+<p align="center">
+  <strong>Prove you understand the code before it ships.</strong>
+</p>
 
-Built as part of the **Weave** ecosystem, Attest adds a structured verification step before work moves forward. The goal is not to slow teams down. The goal is to preserve **ownership, clarity, and trust** when AI can generate code faster than humans fully internalize it.
+<p align="center">
+  A comprehension gate for AI-assisted development that verifies engineers genuinely understand the code they're about to merge — not just that it compiles.
+</p>
+
+---
 
 ## Why Attest exists
 
-AI-assisted coding changes the speed of delivery.
+AI can write code faster than humans can internalize it. Code can compile, pass tests, and look perfectly reasonable — while the engineer who submitted it can't explain what it does under load, what assumptions it relies on, or how to debug it at 2am.
 
-It also creates a new failure mode: code can compile, pass tests, and look plausible even when the submitting engineer cannot clearly explain:
+Attest closes that gap. It's a comprehension gate that interviews you about your actual diff, scales question depth to risk level, and leaves behind auditable evidence of understanding. Not a linter. Not a test suite. A proof that a human is in the loop — and actually in command.
 
-- how the change works
-- what assumptions it relies on
-- what could fail in production
-- how it should be debugged, reviewed, or owned after merge
+## What Attest does
 
-Attest is designed to close that gap.
+Attest is an **OpenCode plugin** that conducts a targeted interview grounded in your actual code diff before a pull request is opened.
 
-Before a pull request is opened, Attest asks the engineer to explain the change in a short, structured interview grounded in the actual diff. It then records evidence and returns a verdict.
+- **Inspects** your local code changes
+- **Classifies risk** — sensitive changes (auth, crypto, billing, migrations) get deeper scrutiny
+- **Asks targeted questions** — calibrated to the change's risk level (2–6 questions)
+- **Evaluates answers** — assesses whether understanding is genuine
+- **Records evidence** — writes durable, auditable artifacts (JSON + Markdown)
+- **Returns a verdict** — `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, `ESCALATE_TO_HUMAN`, or `BLOCK`
 
-## What Attest is
+## How it works
 
-Attest is an **OpenCode server plugin** with a slash-command interface.
+```
+/attest
+  → Declare intent (summary, motivation, AI disclosure)
+  → Diff collected (staged or branch)
+  → Risk classified (deterministic pattern matching)
+  → Interview depth selected (low: 2, medium: 4, high: 6 questions)
+  → Questions generated (grounded in actual diff)
+  → Answers collected (interactive)
+  → Answers evaluated
+  → Escalation rules applied (deterministic)
+  → Verdict computed (deterministic)
+  → Evidence artifacts written
+  → Verdict rendered
+```
 
-- runs inside the developer workflow
-- inspects local code changes
-- asks targeted comprehension questions conversationally
-- evaluates whether understanding appears genuine
-- writes a durable evidence record
+## Key features
+
+| Feature | Detail |
+|---------|--------|
+| **Risk-aware depth** | Low-risk (docs, tests): 2 questions. Medium (business logic): 4. High (auth, crypto, billing): 6. |
+| **Deterministic policy** | Risk classification, verdict computation, and escalation rules are fully deterministic and auditable. |
+| **Durable evidence** | Machine-readable JSON and human-readable Markdown artifacts for every run. |
+| **Session resume** | Interrupted interviews can be resumed without starting over. |
+| **Strict LLM contract** | LLM calls are behind a contract boundary with schema validation — behavior stays predictable. |
+| **Intent declaration** | Engineers declare their change summary, motivation, and AI usage upfront. |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/attest` | Run against staged changes (default) |
+| `/attest branch` | Run against current branch diff |
+| `/attest resume` | Resume an interrupted session |
 
 ## Installation
 
-Add Attest to your `opencode.json`:
+This package is published on [npm](https://www.npmjs.com/package/@weaveio/opencode_attest).
+
+### Prerequisites
+
+- [OpenCode](https://opencode.ai)
+
+### Step 1: Add to opencode.json
+
+Add the plugin to your `opencode.json` file:
 
 ```json
 {
-  "plugin": ["@weave/attest-opencode-plugin"]
+  "plugin": ["@weaveio/opencode_attest"]
 }
 ```
 
-## Usage
+### Step 2: Restart OpenCode
 
-### Slash commands
+OpenCode automatically installs npm plugins at startup — no manual `bun add` or `npm install` required. The plugin loads automatically upon restart and works with zero configuration out of the box.
 
-- `/attest` — run Attest against staged changes
-- `/attest branch` — run Attest against the current branch diff (vs main)
-- `/attest-resume` — resume an interrupted Attest session
+### Troubleshooting
 
-### Expected flow
+| Issue | Solution |
+|-------|----------|
+| `404 Not Found` | Ensure the package name is correct: `@weaveio/opencode_attest`. |
+| Package not found after publish | npm can take a few minutes to propagate. Wait and retry. |
 
+## Uninstalling
+
+### Step 1: Remove from opencode.json
+
+Delete the `@weaveio/opencode_attest` entry from the `plugin` array in your `opencode.json`.
+
+### Step 2: Clean up artifacts (optional)
+
+Remove Attest runtime state if no longer needed:
+
+```bash
+rm -rf .attest/
 ```
-User: /attest
-Attest: "I've analyzed your staged changes. Here's the comprehension interview:
-         Risk level: medium (2 files changed, touches business logic)
 
-         Question 1/3: How does the new validation flow handle edge cases?
-         Question 2/3: What assumption does the service make about request ordering?
-         Question 3/3: What would you check first if this broke in production?"
-User: [answers each question in conversation]
-Attest: [calls attest_submit tool with session_id and collected answers]
-Attest: "Verdict: PASS — all 3 answers demonstrate solid understanding.
-         Evidence written to .attest/runs/2026-04-15T16-30-00.000Z.json"
-```
+## Development
 
-### Command/Tool Contract
+- **Build**: `bun run build`
+- **Test**: `bun test`
+- **Typecheck**: `bun run typecheck`
 
-1. `/attest` triggers a `command.execute.before` hook that:
-   - Inspects the staged (or branch) diff
-   - Classifies risk
-   - Generates comprehension questions
-   - Creates a session record
-   - Injects interview context into the LLM message
-
-2. The LLM presents questions to the user and collects answers conversationally.
-
-3. The LLM calls the `attest_submit` tool with:
-   - `session_id` — the session ID from the interview context
-   - `answers` — array of `{ question_id, answer }` (user's verbatim answers)
-
-4. The tool evaluates answers, writes evidence, and returns a verdict.
-
-Possible verdicts: `PASS`, `PASS_WITH_WARNINGS`, `NEEDS_FOLLOWUP`, `ESCALATE_TO_HUMAN`, `BLOCK`
+See [docs/testing-strategy.md](docs/testing-strategy.md) for details.
 
 ## Repository layout
 
 ```text
 src/                    Source code with co-located unit tests
-  commands/             Server plugin command and tool definitions
   config/               Configuration loading
   domain/               Core domain models
   evidence/             Evidence artifact writing
@@ -100,50 +133,21 @@ src/                    Source code with co-located unit tests
   session/              Session persistence
   ui/                   User interface rendering
 test/
-  e2e/                  End-to-end and plugin loading tests
   integration/          Fixture-based integration tests
+  e2e/                  End-to-end and plugin loading tests
   testkit/              Shared test fixtures and utilities
 evals/                  Behavioral eval harness
+  cases/                Eval case definitions
 script/                 Build scripts
 docs/                   Architecture and strategy documentation
 dist/                   Build output (generated)
+.opencode/
+  plugins/attest.ts     Plugin entry shim
+  tui.json              Plugin discovery config
+  commands/             Slash command spike
 .attest/
   config.example.json   Sample pilot config
 ```
-
-## Development
-
-### 1. Install dependencies
-
-```bash
-bun install
-```
-
-### 2. Build
-
-```bash
-bun run build
-```
-
-### 3. Testing
-
-```bash
-# All tests (unit + integration + e2e)
-bun test
-
-# Individual layers
-bun run test:unit
-bun run test:integration
-bun run test:e2e
-
-# Typecheck
-bun run typecheck
-
-# Behavioral evals (non-blocking)
-bun run evals
-```
-
-See [docs/testing-strategy.md](docs/testing-strategy.md) for details.
 
 ## Evidence artifacts
 
@@ -155,27 +159,26 @@ Attest writes local artifacts under:
 
 ## Design principles
 
-- **Understanding over output** — passing tests is not the same as understanding the change
-- **Evidence over intuition** — Attest should leave behind a durable record
-- **Risk-based, not uniform** — sensitive changes should be treated differently
-- **Local-first for the pilot** — keep the first version close to the developer workflow
-- **Structured, not ad hoc** — the interview should be grounded in the actual diff and declared intent
+- **Understanding over output** — passing tests ≠ understanding the change
+- **Evidence over intuition** — leave behind durable records, not just verdicts
+- **Risk-based, not uniform** — sensitive changes get deeper scrutiny
+- **Local-first for the pilot** — keep close to the developer workflow
+- **Structured, not ad hoc** — grounded in actual diff and declared intent
 
-## Deterministic vs LLM-backed behavior
+## Deterministic vs LLM-backed
 
-### Deterministic
+| Layer | Scope |
+|-------|-------|
+| **Deterministic** | Diff inspection, config loading, risk classification, escalation rules, verdict policy, session persistence, evidence writing |
+| **LLM-backed** | Question generation, answer evaluation (behind strict contract boundary with schema validation) |
 
-- diff inspection, config loading, risk classification, escalation rules, verdict policy, session persistence, evidence writing
-
-### LLM-backed
-
-- interview question generation, answer evaluation
-
-The production plugin uses OpenCode's session-based LLM client. Tests use a stub client behind the same contract boundary. See [docs/architecture.md](docs/architecture.md) for details.
+See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Relationship to Weave
 
-Attest fits naturally with Weave's structured workflow model. Where Weave adds planning, review, orchestration, and auditability to AI coding workflows, Attest focuses on: **Can the person submitting this change actually explain and own it?**
+Attest fits naturally with Weave's structured workflow model. Where Weave adds planning, review, orchestration, and auditability to AI coding workflows, Attest focuses on one question:
+
+> **Can the person submitting this change actually explain and own it?**
 
 - Weave: https://tryweave.io/
 - OpenCode Weave: https://github.com/pgermishuys/opencode-weave
@@ -186,6 +189,8 @@ Attest fits naturally with Weave's structured workflow model. Where Weave adds p
 - [Testing Strategy](docs/testing-strategy.md)
 - [Releasing](docs/releasing.md)
 
-## Working definition
+---
 
-**Attest helps teams prove human understanding and ownership before AI-assisted code moves forward.**
+<p align="center">
+  <strong>Attest — because compiling isn't understanding.</strong>
+</p>
