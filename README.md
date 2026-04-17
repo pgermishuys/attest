@@ -14,6 +14,31 @@
 
 ---
 
+## Index
+
+- [Why Attest exists](#why-attest-exists)
+- [What Attest does](#what-attest-does)
+- [How it works](#how-it-works)
+- [Key features](#key-features)
+- [Commands](#commands)
+- [Diff modes](#diff-modes)
+- [Configuration](#configuration)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+  - [Step 1: Install the plugin in OpenCode](#step-1-install-the-plugin-in-opencode)
+  - [Step 2: Restart OpenCode](#step-2-restart-opencode)
+  - [Troubleshooting](#troubleshooting)
+- [Uninstalling](#uninstalling)
+  - [Step 1: Remove from opencode.json](#step-1-remove-from-opencodejson)
+  - [Step 2: Clean up artifacts (optional)](#step-2-clean-up-artifacts-optional)
+- [Development](#development)
+- [Repository layout](#repository-layout)
+- [Evidence artifacts](#evidence-artifacts)
+- [Design principles](#design-principles)
+- [Deterministic vs LLM-backed](#deterministic-vs-llm-backed)
+- [Relationship to Weave](#relationship-to-weave)
+- [Documentation](#documentation)
+
 ## Why Attest exists
 
 AI can write code faster than humans can internalize it. Code can compile, pass tests, and look perfectly reasonable — while the engineer who submitted it can't explain what it does under load, what assumptions it relies on, or how to debug it at 2am.
