@@ -116,9 +116,20 @@ This package is published on [npm](https://www.npmjs.com/package/@weaveio/openco
 
 - [OpenCode](https://opencode.ai)
 
-### Step 1: Add to opencode.json
+### Step 1: Install the plugin in OpenCode
 
-Add the plugin to your `opencode.json` file:
+If you're working with an LLM inside OpenCode, you can ask it to install the plugin for you instead of manually hunting down `opencode.json`.
+
+Example prompt:
+
+```text
+Please install the OpenCode plugin `@weaveio/opencode_attest` for me by updating my OpenCode plugin configuration.
+If the `plugin` array already exists, add it there.
+If not, create it in the correct `opencode.json` file.
+Then ask me to restart OpenCode.
+```
+
+If you're doing it manually, add the plugin to your `opencode.json` file:
 
 ```json
 {
